@@ -2,6 +2,7 @@ import os
 import requests
 import re
 from datetime import datetime, timedelta
+import locale
 
 # Function definitions
 
@@ -58,6 +59,9 @@ def out_table_row(date, saints, worships, out_file):
         file.write('</tr>\n')
 
 # Main code
+
+# Устанавливаем русскую локаль
+locale.setlocale(locale.LC_TIME, 'ru_RU.UTF-8')
 
 current_directory = './'  # Adjust according to your environment
 out_file = current_directory + 'table.html'
