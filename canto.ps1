@@ -76,16 +76,29 @@ $currentDirectory = $MyInvocation.MyCommand.Definition | split-path -parent
 $outFile = $currentDirectory+'\table.html'
 if (Test-Path $outFile) {Remove-Item $outFile}
 
-$startDate = $monday.ToString("dd-MM-yyy")
-$endDate = $monday.AddDays(6).ToString("dd-MM-yyy")
+# Инициализируем переменную для хранения результата проверки
+$monday = $null
 
-Write-Host "Make schedule from $startDate to $endDate"
+# Цикл do...while для повторного запроса даты при некорректном вводе
+do {
+    # Запрашиваем у пользователя ввод даты
+    $dateInput = Read-Host "Start date (dd.mm.yyyy)"
+
+    try {
+        # Пытаемся преобразовать строку в объект DateTime с новым форматом
+        $monday = [datetime]::ParseExact($dateInput, "dd.MM.yyyy", $null)
+    } catch {
+        # Если возникла ошибка, выводим сообщение о некорректной дате
+        Write-Host "Wrong date format!" -ForegroundColor Red
+    }
+} while ($monday -eq $null)  # Повторяем цикл, пока дата не будет корректной
+
 Out-TableHeader
 
 1 .. 7 | foreach {
     $date = $monday.AddDays($_-1)
 
-    Write-Host "Request $($Date.ToString("dd-MM-yyyy")) ..."
+    Write-Host "Request $($Date.ToString("dd.MM.yyyy")) ..."
 
     # Святые и праздники дня
     $saints = (Get-Saints $date)
