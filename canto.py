@@ -3,6 +3,8 @@ import requests
 import re
 from datetime import datetime, timedelta
 import locale
+import subprocess
+
 
 # Function definitions
 
@@ -13,20 +15,20 @@ def get_response_from_api(date):
     return response.text
 
 def parse_response(response):
-    regex = r'function\s+print_day\s*\(\s*\)\s*{([^}]*)}'
-    match = re.search(regex, response)
-    if match:
+    # Ищем содержимое функции print_day
+    if match := re.search(r'function\s+print_day\s*\(\s*\)\s*{([^}]*)}', response):
         saints = match.group(1).strip()
     else:
-        saints = 'Unknown'
+        return "Unknown"
     
-    saints = ' '.join([part.strip() for part in saints.split(';') if part.strip()])
-    saints = re.sub(r'<[^>]+>', '', saints)
+    # Удаляем HTML-теги и разделяем по точкам с запятой
+    saints = re.sub(r'<[^>]+>', '', saints)  # Убираем HTML-теги
+    saints = ' '.join(part.strip() for part in saints.split(';') if part.strip())
     
+    # Извлекаем текст внутри кавычек и возвращаем результат
     matches = re.findall(r'"(.*?)"', saints)
-    result_fragments = [match.strip() for match in matches if match.strip()]
-    
-    return ' '.join(result_fragments)
+    return ' '.join(match.strip() for match in matches if match.strip())
+
 
 def get_saints(date):
     response = get_response_from_api(date)
@@ -35,13 +37,17 @@ def get_saints(date):
 
 def out_table_header(out_file):
     with open(out_file, "a", encoding="utf-8") as file:  
-        file.write('<table class="alignleft schedule">\n')
-        file.write('<tbody>\n')
+        file.write(f"""
+<table class="alignleft schedule">
+<tbody>
+""")
 
 def out_table_footer(out_file):
     with open(out_file, "a", encoding="utf-8") as file:
-        file.write('</tbody>\n')
-        file.write('</table>\n')
+        file.write(f"""
+</tbody>
+</table>
+""")
 
 def out_table_row(date, saints, worships, out_file):
     day_of_week_rus = date.strftime('%A').capitalize()
@@ -51,12 +57,14 @@ def out_table_row(date, saints, worships, out_file):
     row_class = 'red' if date.weekday() == 6 else ''
     
     with open(out_file, "a", encoding="utf-8") as file:
-        file.write(f'<!-- *********** {day_of_week_rus} ************************************************************ -->\n')
-        file.write(f'<tr class="{row_class}">\n')
-        file.write(f'<td>{date_for_table}</td>\n')
-        file.write(f'<td>{saints}</td>\n')
-        file.write(f'<td>{worships}</td>\n')
-        file.write('</tr>\n')
+        file.write(f"""
+<!-- *********** {day_of_week_rus} ************************************************************ -->
+<tr class="{row_class}">
+<td>{date_for_table}</td>
+<td>{saints}</td>
+<td>{worships}</td>
+</tr>
+ """)
 
 # Main code
 
@@ -70,7 +78,22 @@ if __name__ == "__main__":
     if os.path.exists(out_file):
         os.remove(out_file)
     
-    monday = datetime(2026, 2, 24)
+    # Инициализируем переменную для хранения результата проверки
+    monday = None
+
+    # Цикл while для повторного запроса даты при некорректном вводе
+    while monday is None:
+        # Запрашиваем у пользователя ввод даты
+        date_input = input("Start date (dd.mm.yyyy): ")
+
+        try:
+            # Пытаемся преобразовать строку в объект datetime с указанным форматом
+            monday = datetime.strptime(date_input, "%d.%m.%Y")
+        except ValueError:
+            # Если возникла ошибка, выводим сообщение о некорректной дате
+            print("\033[91mWrong date format!\033[0m")  # Вывод красного сообщения об ошибке
+
+
     out_table_header(out_file)
     
     for i in range(1, 8):
@@ -89,3 +112,6 @@ if __name__ == "__main__":
         out_table_row(date, saints, worships, out_file)
     
     out_table_footer(out_file)
+
+    subprocess.run(['vim', 'table.html'])
+
